@@ -59,6 +59,20 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-channels-lock.tx
 RUN printf '%s\n' 'keyrings.alt==5.0.2 --hash=sha256:6be74693192f3f37bbb752bfac9b86e6177076b17d2ac12a390f1d6abff8ac7c' > /tmp/keyring-backend.txt \
     && pip install --no-cache-dir --require-hashes -r /tmp/keyring-backend.txt
 
+# Alpaca broker connector SDK. The connector imports alpaca-py lazily, and the
+# documented onboarding (`pip install alpaca-py keyring`) cannot run here: the
+# runtime rootfs is read-only. So the SDK ships in the image. pandas, pydantic,
+# requests, websockets and typing-extensions are already installed from the
+# locks above and satisfy alpaca-py's pins; only these three are new. msgpack
+# is a C extension, so its hashes cover cp311 manylinux x86_64 + aarch64 (the
+# builder and runtime interpreter).
+RUN printf '%s\n' \
+    'alpaca-py==0.45.0 --hash=sha256:49d1969520f93f0f3f194a595b4ac8dc180e9e7e1eb84b5b8fd5bd641f217dd2' \
+    'msgpack==1.2.4 --hash=sha256:a45ceb5f199d5e388f28b550ba881096a3740d4bda10e661d77f59d9a2e8187a --hash=sha256:0c75cfda0d3ccb1f6abc20e0608ad6b226e11f317b5ac297721504d2509e2bd9' \
+    'sseclient-py==1.9.0 --hash=sha256:340062b1587fc2880892811e2ab5b176d98ef3eee98b3672ff3a3ba1e8ed0f6f' \
+    > /tmp/alpaca-connector.txt \
+    && pip install --no-cache-dir --require-hashes -r /tmp/alpaca-connector.txt
+
 # Copy project + install the CLI entrypoint (editable — the runtime stage
 # re-creates the same /app/agent source tree the .pth file points at).
 # --no-deps because every dependency is already installed from the two locks
