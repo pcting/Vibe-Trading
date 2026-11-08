@@ -45,6 +45,20 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-lock.txt
 COPY requirements-channels-lock.txt requirements-channels-lock.txt
 RUN pip install --no-cache-dir --require-hashes -r requirements-channels-lock.txt
 
+# File-based keyring backend for headless containers. The app stores broker
+# connector credentials (Alpaca etc.) via the `keyring` package, but the image
+# ships no keyring backend: with no D-Bus Secret Service the vault raises
+# NoKeyringError and connector credential saves fail outright. keyrings.alt
+# supplies the file backends; the deployment selects one with
+# PYTHON_KEYRING_BACKEND and mounts a volume at ~/.keyring so it persists.
+# Not part of the app locks (it's deployment infrastructure, not a dependency
+# of the agent), so it's pinned + hashed inline to stay inside the supply-chain
+# contract above.
+# Inline requirement file: pip only accepts `--hash` in -r files, not as a
+# command-line requirement string.
+RUN printf '%s\n' 'keyrings.alt==5.0.2 --hash=sha256:6be74693192f3f37bbb752bfac9b86e6177076b17d2ac12a390f1d6abff8ac7c' > /tmp/keyring-backend.txt \
+    && pip install --no-cache-dir --require-hashes -r /tmp/keyring-backend.txt
+
 # Copy project + install the CLI entrypoint (editable — the runtime stage
 # re-creates the same /app/agent source tree the .pth file points at).
 # --no-deps because every dependency is already installed from the two locks
